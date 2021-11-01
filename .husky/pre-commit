@@ -1,6 +1,8 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
+# runs prettier, lint:fix & tests in parallel. Prints the last 3 lines of tests in the end
+
 function wait_and_get_exit_codes() {
     children=("$@")
     EXIT_CODE=0
