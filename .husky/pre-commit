@@ -1,5 +1,29 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-npx --no-install lint-staged
-npx --no-install git-precommit-checks
+function wait_and_get_exit_codes() {
+    children=("$@")
+    EXIT_CODE=0
+    for job in "${children[@]}"; do
+       CODE=0;
+       wait ${job} || CODE=$?
+       if [[ "${CODE}" != "0" ]]; then
+           echo "At least one pre-commit hook failed with exit code: ${CODE}" ;
+           EXIT_CODE=1;
+       fi
+   done
+}
+
+temp_file=$(mktemp) 
+echo "[pre-commit] running eslint, prettier & unit tests in parallel"
+prettier --write src > /dev/null & PID1=$!
+npm run lint:fix > /dev/null & PID2=$!
+script -q /dev/null npm test > $temp_file & PID3=$!
+
+children_pids=($PID1 $PID2 $PID3)
+wait_and_get_exit_codes "${children_pids[@]}"
+if [[ "${EXIT_CODE}" == "0" ]]; then 
+    tail -n 3 $temp_file
+fi
+rm $temp_file
+exit "$EXIT_CODE"
