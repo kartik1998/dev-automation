@@ -18,5 +18,3 @@ fi
 if [[ "${CODE}" == "0" ]]; then
     wait $PID3 
 fi
-
-
