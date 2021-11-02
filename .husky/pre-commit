@@ -1,31 +1,22 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-# runs prettier, lint:fix & tests in parallel. Prints the last 3 lines of tests in the end
-
-function wait_and_get_exit_codes() {
-    children=("$@")
-    EXIT_CODE=0
-    for job in "${children[@]}"; do
-       CODE=0;
-       wait ${job} || CODE=$?
-       if [[ "${CODE}" != "0" ]]; then
-           echo "At least one pre-commit hook failed with exit code: ${CODE}" ;
-           EXIT_CODE=1;
-       fi
-   done
-}
-
-temp_file=$(mktemp) 
 echo "[pre-commit] running eslint, prettier & unit tests in parallel"
 prettier --write src > /dev/null & PID1=$!
 npm run lint:fix > /dev/null & PID2=$!
-script -q /dev/null npm test > $temp_file & PID3=$!
+npm test --silent & PID3=$!
 
-children_pids=($PID1 $PID2 $PID3)
-wait_and_get_exit_codes "${children_pids[@]}"
-if [[ "${EXIT_CODE}" == "0" ]]; then 
-    tail -n 3 $temp_file
+CODE=0
+wait $PID1 || CODE=$?
+wait $PID2 || CODE=$?
+if [[ "${CODE}" != "0" ]]; then
+    echo 'ERROR: eslint failed'
+    trap 'jobs -p | xargs kill' EXIT
+    exit 1
 fi
-rm $temp_file
-exit "$EXIT_CODE"
+
+if [[ "${CODE}" == "0" ]]; then
+    wait $PID3 
+fi
+
+
